@@ -1,0 +1,737 @@
+---
+title: "Homework 2: The Big Short"
+output: html_document
+---
+ 
+**This homework is due Friday February 26, 2016 at 5:00 PM. When complete, submit your code in the R Markdown file and the knitted HTML via GitHub.**
+
+# Background 
+
+This homework is motivated by circumstances surrounding the [financial crisis of 2007-2008](https://en.wikipedia.org/wiki/Financial_crisis_of_2007%E2%80%9308). We titled the homework _The Big Short_, after the book on the same topic that was also recently made into a movie.
+
+Part of what caused the financial crisis was that the risk of certain [securities](https://en.wikipedia.org/wiki/Security_(finance)) sold by financial institutions were  underestimated. Specifically, 
+the risk of mortgage-backed securities (MBS) and collateralized debt obligations (CDO), the price of which depends on homeowners making their monthly payments, was grossly underestimated. A combination of factors resulted in many more defaults than were expected. This resulted in a crash of the prices of these securities. As a consequence, banks lost so much money that they needed bailouts to avoid default.
+
+Here we present a **very** simplified version of what happened with some of these securities. Hopefully it will help you understand how a wrong assumption about the statistical behavior of events can lead to substantial differences between what the model predicts and what actually happens. Specifically, we will see how using an independence assumption can result in misleading conclusions. Before we start with the specific application we ask you about a simple casino game.
+
+# Problem 1
+
+In the game of [roullete](https://en.wikipedia.org/wiki/Roulette)
+you can bet on several things including black or red. On this bet, if you win, you double your earnings. How does the casino make money on this then? If you look at the [possibilities](http://www.math.uah.edu/stat/games/Roulette.png)
+you realize that the chance of red or black are both slightly less than 1/2. There are two green spots, so the of landing on black (or red) is actually 18/38, or 9/19.
+
+
+## Problem 1A
+
+Let's make a quick sampling model for this simple version of roulette. You are going to bet a dollar each time you play and always bet on black. Make a box model for this process using the `sample` function. Write a function `get_outcome` that takes as an argument the number of times you play $N$ and returns your earnings $S_N$.
+
+```{r}
+##Your code here
+
+get_outcome <-function(N){
+  # Make a roulette
+  roulette <- rep(c("black","red","green"),38*c(18/38,18/38,2/38))
+  draw <- sample(roulette, N, replace=TRUE) 
+  S_N <- sum(as.numeric(draw=="black"))*1 + sum(as.numeric(draw !="black"))*(-1)
+  names(S_N) <- "This is your earning:"
+  return(S_N)
+}
+```
+
+-----
+
+## Problem 1B
+
+Use Monte Carlo simulation to study the distribution of total earnings $S_N$ for $N=10,25,100,1000$. That is, study the distribution of earnings for different number of plays. What are the distributions of these two random variables? How do the expected values and standard errors change with $N$? Then do the same thing for the average winnings $S_N/N$. What result that you learned in class predicts this?
+
+```{r}
+##Your code here
+
+# set seed
+set.seed(02138)
+# initialize number of simulations
+nIter <-1000000
+# initialize place-holder for total earnigns 
+S_N1 <-rep(NA,nIter)
+S_N2 <-rep(NA,nIter)
+S_N3 <-rep(NA,nIter)
+S_N4 <-rep(NA,nIter)
+
+for (i in 1:nIter){
+  S_N1[i] <- get_outcome(10)
+  S_N2[i] <- get_outcome(25)
+  S_N3[i] <- get_outcome(100)
+  S_N4[i] <- get_outcome(1000)
+}
+S_N <-data.frame(S_N1,S_N2,S_N3,S_N4)
+
+## Look at distribution of Total Earnings with different N
+
+# EDA: Histogram
+library(ggplot2)
+ggplot(S_N,aes(S_N1))+geom_histogram(binwidth=1,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=10 Draws") +geom_vline(xintercept=mean(S_N$S_N1),col="blue")  
+ggplot(S_N,aes(S_N2))+geom_histogram(binwidth=1,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=25 Draws") +geom_vline(xintercept=mean(S_N$S_N2),col="blue")  
+ggplot(S_N,aes(S_N3))+geom_histogram(binwidth=1,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=100 Draws") +geom_vline(xintercept=mean(S_N$S_N3),col="blue")  
+ggplot(S_N,aes(S_N4))+geom_histogram(binwidth=1,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=1000 Draws") +geom_vline(xintercept=mean(S_N$S_N4),col="blue")  
+
+# EDA: QQ-plot to check normality
+qqnorm(S_N$S_N1)
+qqline(S_N$S_N1)
+
+qqnorm(S_N$S_N2)
+qqline(S_N$S_N2)
+
+qqnorm(S_N$S_N3)
+qqline(S_N$S_N3)
+
+qqnorm(S_N$S_N4)
+qqline(S_N$S_N4)
+
+# expected values 
+sapply(S_N, mean)
+#  standard errors 
+sapply(S_N,sd)
+
+## Look at distribution of average Earnings with different N
+S_N$S_N1 <- S_N$S_N1/10
+S_N$S_N2 <- S_N$S_N2/25
+S_N$S_N3 <- S_N$S_N3/100
+S_N$S_N4 <- S_N$S_N4/1000
+
+# EDA: Histogram
+ggplot(S_N,aes(S_N1))+geom_histogram(binwidth=0.01,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=10 Draws") +geom_vline(xintercept=mean(S_N$S_N1),col="blue")  
+ggplot(S_N,aes(S_N2))+geom_histogram(binwidth=0.01,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=25 Draws") +geom_vline(xintercept=mean(S_N$S_N2),col="blue")  
+ggplot(S_N,aes(S_N3))+geom_histogram(binwidth=0.01,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=100 Draws") +geom_vline(xintercept=mean(S_N$S_N3),col="blue")  
+ggplot(S_N,aes(S_N4))+geom_histogram(binwidth=0.01,fill="pink") +xlab("Total Earnings") + ggtitle("Total Earnings for N=1000 Draws") +geom_vline(xintercept=mean(S_N$S_N4),col="blue") 
+
+# EDA: QQ-plot
+qqnorm(S_N$S_N1)
+qqline(S_N$S_N1)
+
+qqnorm(S_N$S_N2)
+qqline(S_N$S_N2)
+
+qqnorm(S_N$S_N3)
+qqline(S_N$S_N3)
+
+qqnorm(S_N$S_N4)
+qqline(S_N$S_N4)
+
+# expected values  
+sapply(S_N, mean)
+# standard errors 
+sapply(S_N,sd)
+
+```
+
+Your answer here.
+
+-----
+
+**Total Earnings**: 
+1. From the histograms and QQ-plots, the distribution of total earnings tend to be more like Normal distribution when N gets larger, in these four chosen Ns, we can see that the total earnings almost fits into the line of theoretical Normal quantiles; 
+2. the expected values of total earnings increase from $4.2 to $ 420.9 when N changes from 10 to 1000, that is, the expected values increases $0.4 for every 1 more bet; 
+3. the standard errors of total earnings increases from $4.7 to $ 47.7 when N changes from 10 to 1000, that is, the uncertainty also increases when N increases, but less in magnitude than the expected values, almost 10 folds less.
+
+
+**Average Earnings**: 
+1. From the histograms and QQ-plots, the distribution of average earnings tend to be more like Normal distribution when N gets larger, in these four chosen Ns, we can see that the average earnings almost fits into the line of theoretical Normal quantiles;  
+2. the expected values of average earnings don't change much as N changes
+3. However, the standard errors of average earnings decreases significantly when N increases, it changes from $0.47 to $0.048 when N changes from 10 to 1000, in contrast to total earnings, the uncertainty of average earnings gets smaller and smaller when number of bets increases.
+
+-----
+
+## Problem 1C
+
+What is the expected value of our sampling model? What is the standard deviation of our sampling model?
+
+Your answer here.
+
+**Our sampling model** is to bet "black" from a random draw of Roulette which has 18 "black" spots, 18 "red" spots, and 2 "green" spots. It follows a _Bernoulli Distribution_ with probability $$p=\frac{18}{38}$$. So, the expected value of our sampling model is $$E=\frac{18}{38}=0.4736842$$ . The standard deviation of our sampling model is $$ SD=\sqrt(\frac{18}{38} (1-\frac{18}{38}))=0.499307 $$ .
+ 
+-----
+
+## Problem 1D
+
+Use CLT to approximate the probability that the casino loses money when you play 25 times. Then use a Monte Carlo simulation to confirm.
+
+Your answer here. 
+
+The probability that the casino loses money is equal to the probability that your total earnings >0 when you play 25 times, and also is equivalent to the probability that your average earnings >0 when you play 25 times. However, we don't know the distribution of average earnings when you play 25 times. We know that, for each play, your expected earning is $$E=(1)(\frac{18}{38})+(-1)(\frac{20}{38})=-\frac{2}{38}= -0.05263158$$ and standard deviation is 
+$$SD=\sqrt((1-(-\frac{2}{38}))^2\frac{18}{38}+(-1-(-\frac{2}{38}))^2\frac{20}{38}))=0.998614$$
+
+By Central Limit Theorem, we could appximate the distribution of average earnings when you play 25 times.The Central Limit Theorem tells us that, if we randomly draw from our sampling model sufficiently large number of times, the average number of casino loses money is approximately normally distributed.
+
+So, if we repeat the play 25 times, the average earnings follows a Normal distribution with the expected value: $$E=(1)(\frac{18}{38})+(-1)(\frac{20}{38})=-\frac{2}{38}= -0.05263158$$  
+And the standard deviation: 
+$$SD=\frac{\sqrt((1-(-\frac{2}{38}))^2(\frac{18}{38})+(-1-(-\frac{2}{38}))^2(\frac{20}{38})))}{\sqrt{25}}=0.1997228$$
+ 
+Thus, if we integrate the normal probability density function for values >0, we get the probability that the casino loses money when you play 25 times, or your earnings is positive when you play 25 times: 
+
+```{r}
+##Your code here
+
+## Use CLT to approximate the probability that the casino loses money when you play 25 times.
+integrate(dnorm,lower=0,upper=100,mean=-0.05263158,sd=0.1997228)
+
+## Then use a Monte Carlo simulation to confirm the probability of casino loses money when you play 25 times.
+set.seed(02138)
+# initialize number of simulations
+nIter <-1000000
+# initialize place-holder for indicators of losing money 
+lose_money <-rep(NA,nIter)
+for(i in 1:nIter){
+  # if your total earnings >0 when you play 25 times, then casino loses money
+ lose_money[i] <- as.numeric(get_outcome(25)>0)
+}
+# probability of losing money would be:
+mean(lose_money)
+```
+
+Results from CLT appriximation and Monte Carlo Simulation is very close.
+
+-----
+
+## Problem 1E
+
+In general, what is the probability that the casino loses money as a function of $N$? Make a plot for values ranging from 25 to 1,000. Why does the casino give you free drinks if you keep playing?
+
+```{r}
+##Your code here
+
+## use a Monte Carlo simulation  
+set.seed(02138)
+
+# initialize number of simulations
+nIter <-1000 
+
+# initialize place-holder for probability
+p <-rep(NA,1000)
+
+for(n in 25:1000){
+  lose_money <-rep(NA,nIter)
+  for(i in 1:nIter){
+    lose_money[i] <- as.numeric(get_outcome(n)>0)
+  }
+  # probability of casino lose money
+  p[n]<-mean(lose_money)
+}
+
+# plot 
+library(dplyr)
+library(ggplot2)
+dat <-data.frame(n=seq(1:1000),p)
+
+filter(dat,n>=25)%>% ggplot(aes(x=n,y=p))+geom_point()+xlab("Number of Games")+ylab("Probability of Casino Lose Money")+ggtitle("Probability of Casino Lose Money vs Number of Games")
+ 
+```
+
+
+Your answer here.
+
+Same as argument in 1D, in general,if we repeat the play N times, the average earnings follows a Normal distribution with the expected value: $$E=(1)(\frac{18}{38})+(-1)(\frac{20}{38})=-\frac{2}{38}= -0.05263158$$  
+And the standard deviation: 
+$$SD=\frac{\sqrt((1-(-\frac{2}{38}))^2(\frac{18}{38})+(-1-(-\frac{2}{38}))^2(\frac{20}{38})))}{\sqrt{N}}$$
+ 
+Thus, if we integrate the normal probability density function for values >0, we get the probability that the casino loses money when you play N times, or your earnings is positive when you play N times. Notice that, when N gets larger and larger, the distribution is more and more concentrated around the mean -0.05263158, so the probability of positive earnings will get smaller and smaller. Casino give you free drinks if you keep playing, because it will keep profit from you if you stay there.
+
+-----
+
+
+
+# Problem 2 
+
+You run a bank that has a history of identifying potential homeowners that can be trusted to make payments. In fact, historically, in a given year, only 2% of your customers default. You want to use stochastic models to get an idea of what interest rates you should charge to guarantee a profit this upcoming year. 
+
+## Problem 2A
+
+Your bank gives out 1,000 loans this year. Create a sampling model and use the function `sample` to simulate the number of foreclosure in a year with the information that 2% of customers default. Also suppose your bank loses $120,000 on each foreclosure. Run the simulation for one year and report your loss.
+
+Your answer here.
+
+The sampling model is, randomly draw 1000 times independently from a Bernoulli Distribution with probability 0.02 default, if default, the bank lose $120,000;otherwise the bank lose $0.
+
+```{r}
+##your code here
+ 
+# set seed
+set.seed(02138)
+# sample loss for one year
+sum(sample(c(0,120000),size=1000,replace=TRUE,prob=c(0.98,0.02)))
+```
+
+------
+
+## Problem 2B
+
+Note that the loss you will incur is a random variable. Use Monte Carlo simulation to estimate the distribution of this random variable. Use summaries and visualization to describe your potential losses to your board of trustees.
+
+```{r}
+##your code here
+
+# set seed
+set.seed(02138)
+# replicate the process for 1,000,000 times 
+MCloss <-replicate(1000000 ,sum(sample(c(0,120000),size=1000,replace=TRUE,prob=c(0.98,0.02))))
+ 
+# summarise
+library(dplyr)
+data.frame(MCloss)%>%summarise(ave_loss=mean(MCloss),
+                sd_loss=sd(MCloss),
+                min_loss=min(MCloss),
+                max_loss=max(MCloss),
+                total=n())
+# visulization
+library(ggplot2)
+data.frame(MCloss) %>%ggplot(aes(MCloss))+geom_histogram(fill="pink") +xlim(120000,5520000)+xlab("Bank Loss in a Year") + ggtitle("Yearly Bank Loss by Monte Carlo Simulation") +geom_vline(xintercept=mean(MCloss),col="black",linetype="dashed")  
+
+qqnorm(MCloss)
+qqline(MCloss)
+```
+
+Your answer here.
+
+The expected bank loss per year would be around $2,398,984, with potential minimum and maximum loss $120,000 and $5,520,000, respectively; the distribution has heavier tails than normal distribution, but it's about right to use normal to describe it. So about 68% of chance that the bank will see its loss between $1,867,384 and $2,930,584; about 95% of chance that the bank will see its loss between $1,335,784 and $3,462,184; about 99.9% of chance that the bank will see its loss between $804,184 and $3,993,784.
+
+-----
+
+## Problem 2C
+
+The 1,000 loans you gave out were for $180,000. The way your bank can give out loans and not lose money is by charging an interest rate. If you charge an interest rate of, say, 2% you would earn $3,600 for each loan that doesn't foreclose. At what percentage should you set the interest rate so that your expected profit totals $100,000. Hint: Create a sampling model with expected value 100 so that when multiplied by the 1,000 loans you get an expectation of $100,000. Corroborate your answer with a Monte Carlo simulation.
+
+Your solution here. 
+
+**Sampling Model:** 
+For each loan, the profit is a random variable taking 2 values as outcome. If default, profit=-120000, with probability=0.02; if not default, $profit=(180000)(rate)$, with probability=0.98. So the expected value of our sampling model is: $$E=(-120000)(0.02)+ (180000)(rate)(0.98) = -2400 + 176400(rate)$$
+
+If set the expected value to 100, then interest rate should be set to 1.42%. 
+
+```{r}
+###your code here
+
+# Corroborate your answer with a Monte Carlo simulation.
+loss <- -120000
+gain <-180000*(0.0142)
+# If set to 1.417%, the expected profit would be:
+mean(replicate(nIter,sum(sample(c(gain,loss),size=1000,replace=TRUE,prob=c(0.98,0.02)))))
+
+# Look at interest rate & expected proifit relationship
+# Monte Carlo Simulation: Assume interest rate between 1% to 5%, simulate 1,000,000 times to get profit for 1000 loans at the set interest rate
+set.seed(02138)
+
+# initialize number of simulations
+nIter <-100000 
+# initialize place-holder for expected profit for a sinlg loan
+profit <-rep(NA,401)
+rate <-seq(from=0.01,to=0.05,by=0.0001)
+
+for(i in 1:401){
+    loss <- -120000
+    gain <-180000*rate[i]
+    profit[i] <-mean(replicate(nIter,sum(sample(c(gain,loss),size=1000,replace=TRUE,prob=c(0.98,0.02)))))  
+  }
+
+dat <-data.frame(rate,profit)   
+ 
+ 
+# plot 
+library(dplyr)
+ 
+dat%>% ggplot(aes(x=rate,y=profit))+geom_point()+xlab("Interest Rate")+ylab("Expected Profit for 1,000 loans")+ggtitle("Expected Profit for 1,000 loans, at each level if interest rate") +geom_vline(xintercept=min(dat$rate[dat$profit>=100000]) ,col='purple',linetype="dashed")+geom_hline(yintercept=100000 ,col='purple',linetype="dashed")
+
+
+```
+
+-----
+
+## Problem 2D
+
+In problem 2C, you were able to set a very low interest rate. Your customers will be very happy and you are expected to earn $100,000 in profits. However, that is just an expectation. Our profit is a random variable. If instead of a profit your bank loses money, your bank defaults. Under the conditions of Problem 2C, what is the probability that your profit is less than 0?
+
+Your answer here.
+
+There are two ways to address this problem: CLT and Monte Carlo Simulation.
+
+- Central Limit Theorem
+
+For each loan, the profit is a random variable taking 2 values as outcome. If default, profit=-120000, with probability=0.02; if not default, $profit=(180000)(rate), with probability=0.98. So the expected profit for 1 loan is: $$E=(-120000) (0.02)+ (180000)(rate)(0.98)$$. The SD for 1,000 loan is :$$SD=\mid (180000)(rate)-(-120000) \mid \sqrt{0.02(1-0.02)}$$   
+
+By central limit theorem, the average of 1000 independent random variable is approximately normally distributed, with mean $$E=(-120000) (0.02)+ (180000)(rate)(0.98)$$ and standard deviation $$ SD=\frac{\mid (180000)(rate)-(-120000) \mid \sqrt{0.02(1-0.02)}}{1000}$$  . The probability of bank default for 1,000 loans (sum profit of 1,000 loans <0) is equivalent to the probability of bank default for 1 loan (profit of 1 loan <0), because we assume they are independent here. 
+
+Hence, integrate the normal distribution up to 0 gives the probability of bank profit is less than 0:
+
+```{r}
+##your code here
+
+# Solution 1: CLT
+ave <- 180000*0.0142*0.98-120000*0.02
+std <- abs(180000*0.0142+120000)*sqrt(0.98*0.02)/sqrt(1000)
+integrate(dnorm,lower=-1000,upper=0,mean=ave,sd=std)
+
+
+# Solution 2: Monte Carlo simulation
+# Set interest rate to 1.42%.
+rate <- 0.0142
+set.seed(02138)
+
+# initialize number of simulations
+nIter <-100000 
+
+# initialize place-holder for Binary result: your bank lose money=Y/N
+profit <-rep(NA,nIter)
+# give out 1000 loans/year, simulate nIter times
+loss <- -120000
+gain <-180000*0.0142
+# probability of your bank loses money
+mean(replicate(nIter,sum(sample(c(gain,loss),size=1000,replace=TRUE,prob=c(0.98,0.02)))<0))  
+
+```
+
+CLT gives 0.40, Monte Carlo Simulation gives 0.44. The difference would be the distribution assumption by CLT.
+
+-----
+
+## Problem 2E
+
+Note that the probability of losing money is quite high. To what value would you have to raise interest rates in order to make the probability of losing money, and your bank and your job, as low as 0.001? What is the expected profit with this interest rate? Corroborate your answer with a Monte Carlo simulation.
+
+Hint: Use the following short cut. If $p$ fraction of a box are $a$s and $(1-p)$ are $b$s, then the SD of the list is $$\mid a-b \mid \sqrt{p(1-p)}$$ 
+
+Your solution here.
+
+Same as 2D, There are two ways to address this problem: CLT and Monte Carlo Simulation.
+
+- Central Limit Theorem
+
+For each loan, the profit is a random variable taking 2 values as outcome. If default, profit=-120000, with probability=0.02; if not default, $profit=(180000)(rate), with probability=0.98. So the expected profit for 1 loan is: $$E=(-120000) (0.02)+ (180000)(rate)(0.98)$$. The SD for 1,000 loan is :$$SD=\mid (180000)(rate)-(-120000) \mid \sqrt{0.02(1-0.02)}$$   
+
+By central limit theorem, the average of 1000 independent random variable is approximately normally distributed, with mean $$E=(-120000) (0.02)+ (180000)(rate)(0.98)$$ and standard deviation $$SD=\frac{\mid (180000)(rate)-(-120000) \mid \sqrt{0.02(1-0.02)}}{1000}$$  . The probability of bank default for 1,000 loans (sum profit of 1,000 loans <0) is equivalent to the probability of bank default for 1 loan (profit of 1 loan <0), because we assume they are independent here. 
+
+Hence, integrate the normal distribution up to 0 gives the probability of bank profit is less than 0, set this number to 0.001 and reverse engineer to get the interest rate.
+
+```{r}
+###your code here
+
+# Solution 1: CLT by Numerically evaluate equation
+library(nleqslv)
+fun <-function(x){
+  ave <- 180000*x*0.98-120000*0.02
+  std <- abs(180000*x+120000)*sqrt(0.98*0.02)/sqrt(1000)
+  qnorm(0.001, mean=ave, sd=std )
+}
+
+better_rate <- nleqslv(0,fun,jacobian=TRUE,control=list(btol=.01))$x
+# To what value would you have to raise interest rates in order to make the probability of losing money, and your bank and your job, as low as 0.001?
+better_rate
+
+
+# Evaluate relation between interest rate and probability of bank default, and visualize, by Monte Carlo Simulation
+rate <-seq(from=0,to=0.05,by=0.0001)
+
+# initialize place-holder for probability of bank default for range of interest rates
+p <- rep(NA,length(rate))
+
+for(i in 1:length(rate)){
+  ave <- 180000*rate[i]*0.98-120000*0.02
+  std <- abs(180000*rate[i]+120000)*sqrt(0.98*0.02)/sqrt(1000)
+  p[i]<-pnorm(0, mean=ave, sd=std )
+}
+
+dat <-data.frame(rate,p)   
+ 
+# plot 
+library(dplyr)
+library(ggplot2)
+dat%>% ggplot(aes(x=rate,y=p))+geom_point()+xlab("Interest Rate")+ylab("Probability of Bank Default")+ggtitle("Probability of Bank Default, at each level if interest rate")  
+
+# Look closer the interval contains 2.3%
+filter(dat,rate>=0.023 & rate<=0.024)%>% ggplot(aes(x=rate,y=p))+geom_point()+xlab("Interest Rate")+ylab("Probability of Bank Default")+ggtitle("Probability of Bank Default, at each level if interest rate") +geom_vline(xintercept=min(dat$rate[dat$p<=0.001]) ,col='purple',linetype="dashed")+geom_hline(yintercept=0.001 ,col='purple',linetype="dashed")
+
+
+# Solution 2: Corroborate your answer with a Monte Carlo simulation
+set.seed(02138)
+nIter <-1000000
+loss <- -120000
+gain <-180000*better_rate
+# probability of your bank loses money
+mean(replicate(nIter,sum(sample(c(gain,loss),size=1000,replace=TRUE,prob=c(0.98,0.02)))<0))  
+ 
+
+
+# Expected profit for 1,000 loans per year with this interest rate
+1000*(-2400 + 176400*better_rate)
+```
+
+Monte Carlo Simulation gives a slightly higher probability which is 0.00239.
+
+------
+
+## Problem 2F
+
+Note that the Monte Carlo simulation gave a slightly higher probability than 0.001. What is a possible reason for this? 
+Hint: See if the disparity is smaller for larger values of $p$. Also check for probabilities larger than 0.001. Recall we made an assumption when we calculated the interest rate.
+
+```{r}
+##your code here
+
+# Compare probability of bank default derived analytically and by Monte Carlo Simulation
+set.seed(02138)
+
+# initialize number of simulations
+nIter <-10000
+# prob of ban default
+p <- seq(0.001,0.01,0.00001)
+Normal_rate <- rep(NA,length(p))
+MC_rate <- rep(NA,length(p))
+diff <- rep(NA,length(p))
+
+for(i in 1:length(p)){
+  # CLT :
+  fun <-function(x){
+      ave <- 180000*x*0.98-120000*0.02
+      std <- abs(180000*x+120000)*sqrt(0.98*0.02)/sqrt(1000)
+      qnorm(p[i], mean=ave, sd=std )
+  }
+  Normal_rate[i] <- nleqslv(0,fun,jacobian=TRUE,control=list(btol=.01))$x
+  # Simulation :
+  loss <- -120000
+  gain <-180000*Normal_rate[i]
+  MC_rate[i]<-mean(replicate(nIter,sum(sample(c(gain,loss),size=1000,replace=TRUE,prob=c(0.98,0.02)))<0))  
+ 
+  # difference :
+  diff[i] <-Normal_rate[i]-MC_rate[i]
+}
+
+dat <- data.frame(p,Normal_rate,MC_rate,diff)
+
+dat%>%ggplot(aes(x=p,y=diff))+geom_point()+xlab("Probability of Bank Default for 1,000 loans") + ylab("Difference of Interest Rate (CLT - Simulation)")+ggtitle("Difference of Interest Rate by CLT and Simulation, at different probability of Bank Default")
+
+
+
+```
+
+
+Your answer here.
+
+One possible reason is that, when we derive the distribution of bank default, we use the Central Limit Theorem to approximate it as Normally distributed. The central limit theorem works better and better when number of random draws gets larger and larger, so it could be that the distribution of the average of 1000 random draws has heavier tail than normal distribution. The normality assumption when we calculated the interest rate is the key assumption we could analytically solve the problem, and also the reason the result is a little bit deviate from what Monte Carlo Simulation suggests, which has no such distributional assumption.
+
+-----
+
+
+
+## Problem 3
+
+We were able to set an interest rate of about 2% that guaranteed a very low probability of having a loss. Furthermore, the expected average was over $1 million. Now other financial companies noticed the success of our business. They also noted that if we increase the number of loans we give, our profits increase. However, the pool of reliable borrowers was limited. So these other companies decided to give loans to less reliable borrowers but at a higher rate.
+
+## Problem 3A
+
+The pool of borrowers they found had a much higher default rate, estimated to be $p=0.05$. What interest rate would give these companies the same expected profit as your bank (Answer to 2E)? 
+
+$$E= (-120000)(default rate)+ (180000)(interest rate)(1-default rate)$$
+
+
+```{r}
+##your code here
+
+your_profit <- 0.02*(-120000) + 180000*0.98*better_rate 
+fun <-function(x){0.05*(-120000)+180000*0.95*x-your_profit}
+# What interest rate would give these companies the same expected profit as your bank (Answer to 2E)? 
+high_rate<-uniroot(fun,c(0,1))$root
+high_rate
+```
+
+-----
+
+## Problem 3B 
+
+At the interest rate calculated in 3A what is the probability of negative profits? Use both the normal approximation and then confirm with a Monte Carlo simulation.
+
+```{r}
+##your code here
+
+# Solution 1: Normal Approximation
+ave <- (-120000)*0.05 + 180000*0.95*high_rate
+std <-abs(180000*high_rate+120000)*sqrt(0.05*0.95)/sqrt(1000)
+# probability of negative profits?
+pnorm(0, mean=ave, sd=std)
+  
+
+# Solution 2: Corroborate your answer with a Monte Carlo simulation
+set.seed(02138)
+nIter <-1000000
+loss <- -120000
+gain <-180000*high_rate
+# probability of your bank loses money
+mean(replicate(nIter,sum(sample(c(gain,loss),size=1000,replace=TRUE,prob=c(0.98,0.05)))<0))  
+```
+
+Normal approximation and Monte Carlo Simulation give a slightly different probability: 0.0271593 vs 0.016557.
+
+-----
+
+## Problem 3C 
+
+Note that the probability is much higher now. This is because the standard deviation grew. The companies giving out the loans did not want to raise interest rates much more since it would drive away clients. Instead they used a statistical approach. They increased $N$. How large does $N$ need to be for this probability to be 0.001? Use the central limit approximation and then confirm with a Monte Carlo simulation.
+
+Your answer here.
+
+By central limit theorem, the average of N independent random variable is approximately normally distributed, with mean: $$E=(-120000)(0.05) + (180000)(1-0.05)(Interest Rate)$$ and standard deviation: $$SD=\frac{\mid (180000)(Interest Rate)-(-120000) \mid \sqrt{0.05(1-0.05)}}{sqrt(N)}$$ . 
+
+
+```{r}
+###your code here
+
+# Central Limit Theorem: Normal approximation
+library(nleqslv)
+
+fun <-function(x){
+  ave <- (-120000)*0.05 + 180000*0.95*high_rate
+  std <-abs(180000*high_rate+120000)*sqrt(0.05*0.95)/sqrt(x)
+  pnorm(0, mean=ave, sd=std)-0.001
+}
+
+#How large does $N$ need to be for this probability to be 0.001?
+N<-nleqslv(1000,fun, jacobian=TRUE,control=list(btol=.01))$x
+N
+
+# Monte Carlo Simulation
+set.seed(02138)
+# initialize number of simulations
+nIter <-1000000
+loss <- -120000
+gain <-180000*high_rate
+# probability of your bank loses money, in contrast to what CLT gave 0.001
+mean(replicate(nIter,sum(sample(c(gain,loss),size=N,replace=TRUE,prob=c(0.98,0.05)))<0)) 
+```
+
+Monte Carlo Simulation gives lower bank default rate for the same number of loans.
+
+So by doubling the number of loans we were able to reduce our risk! Now, for this to work, all the assumptions in our model need to be approximately correct, including the assumption that the probability of default was **independent**. This turned out to be false and the main reason for the under estimation of risk.
+
+-----
+
+## Problem 3D
+
+Define the following matrix of outcomes for two borrowers using our previous box model:
+
+```{r}
+loan <- 180000
+loss_per_foreclosure <- 120000
+p2 <- 0.05
+interest_rate2 <- 0.05
+B <- 10^5
+outcomes1 <- replicate(B,{
+  sample( c(-loss_per_foreclosure, interest_rate2*loan ), 2, replace=TRUE, prob=c(p2, 1-p2))
+})
+```
+We can confirm independence by computing the probability of default for the second conditioned on the first defaulting: 
+
+```{r}
+sum( outcomes1[1,] < 0 & outcomes1[2,]<0)/sum(outcomes1[1,]<0)
+```
+
+This quantity is about the same as the probability of default $0.05$.
+
+Now we create a new model. Before generating each set of defaults, we assume that a random event occurred that makes all default probabilities go up or go down by 4 points. We could see how this would happen if, for example, demand for houses decreases and all house prices drop. 
+
+```{r}
+B <- 10^5
+outcomes2 <- replicate(B,{
+  add <- sample( c(-0.04,0.04), 1)
+  sample( c(-loss_per_foreclosure, interest_rate2*loan ), 2, replace=TRUE, prob=c(p2+add, 1-(p2+add)))
+})
+```
+
+Note that the outcomes are no longer independent as demonstrated by this result not being equal to 0.05
+
+```{r}
+sum( outcomes2[1,] < 0 & outcomes2[2,]<0)/sum(outcomes2[1,]<0)
+```
+
+
+Generate a simulation with correlated outcomes such as those above. This time use the interest rate calculated in 3A. What is the expected earnings under this model compared to the previous? What is the probability of losing $1 million compared to the previous? What is the probability of losing $10 million compared to the previous?
+
+
+
+```{r,warning=FALSE}
+###your code here
+set.seed(02138)
+
+loan <- 180000
+loss_per_foreclosure <- 120000
+p2 <- 0.05
+B <- 10^5
+
+# simulate from independence model 
+outcomes1 <- replicate(B,
+                       {sample( c(-loss_per_foreclosure, high_rate*loan ), 1000, replace=TRUE, prob=c(p2, 1-p2))})
+
+# simulate from correlated model
+outcomes2 <- replicate(B,
+                       {
+                        add <- sample( c(-0.04,0.04), 1)
+                        sample( c(-loss_per_foreclosure, high_rate*loan ), 1000, replace=TRUE, prob=c(p2+add, 1-(p2+add)))
+                        })
+
+# What is the expected earnings under this model compared to the previous?
+## correlated :
+mean(apply(as.matrix(outcomes2),2,sum))
+## previous independent:
+mean(apply(as.matrix(outcomes1),2,sum)) 
+
+
+# What is the probability of losing $1 million compared to the previous?
+## correlated :
+mean(as.numeric(apply(as.matrix(outcomes2),2,sum)<=-1000000)) 
+## previous independent:
+mean(as.numeric(apply(as.matrix(outcomes1),2,sum)<=-1000000)) 
+
+# What is the probability of losing $10 million compared to the previous?
+## correlated :
+mean(as.numeric(apply(as.matrix(outcomes2),2,sum)<=-10000000)) 
+## previous independent:
+mean(as.numeric(apply(as.matrix(outcomes1),2,sum)<=-10000000)) 
+
+```
+
+Your answer here.
+
+The expected earnings under correlated model is lower than independent model; the probabaility of losing $1 million (or losing model in general) in correlated model is higher than in the independent model.
+
+-----
+
+
+## Problem 4
+
+Read [this wikipedia page](https://en.wikipedia.org/wiki/Financial_crisis_of_2007%E2%80%9308) about the financial crisis. Write a paragraph describing how what you learned in this homework can help explain the conditions that led to the crisis.
+
+Your answer here.
+
+According to the article, the financial crisis was due to a series of inter-correlated events. First, easy availability of credit in the U.S. and large inflows of foreign funds after the Russian debt crisis and Asian financial crisis of the 1997-1998 period, led to a housing construction boom and facilitated debt-financed consumer spending. On bank side, there are two parameters of interest. One is the interest rate, if increasing the interest rate, then the bank expected profit will increase and the probability of bank default will decrease; but high interest rate will drive away many potential borrowers. Another is the number of loans the bank gave out, if they gave out more loans, the expected profits will increase, the uncertainty of their expected profit will decrease and the probability of bank default will decrease. So the banks would set a relatively low interest rate and increase the number of loans, by doing this, they could maximize the expected profits and minimize the probability of bank default. But the number of reliable or low-risk borrowers was limited, so banks would expand their targeted customers to high-risk borrowers, therefore, banks need to increase number of loans to offset higher likelihood of bank default and uncertainty of expected profits, which was the incentive to give out more loans. We see from the homework, that if loans are not independent or the probability of default fluctuates instead of fixing at one value, the expected profits will actually less than independent assumption, and the likelihood of bank default will also higher than independent assumption. In reality, I think underlying economy condition and borrower's social-econmical risk factors make the independence assumption invalid, with ceratin period of time and certain groups of people having higher default rate than expected, in other words, the default rate would be clustered or correlated among borrowers with various social-economic background. By adopting independent model, banks will under-estimate the risk of bank default, which later led to financial crisis in the system. 
+ 
+Because incentives of lending and housing purchase, more money was in the housing market, the price of houses exceeded the value, so the real estate bubble incurred. Hereafter, loans of various types (e.g. mortgage) were easy to obtain by high risk population, and consumers overall assumed an unprecedented debt load.As part of the housing and credit booms, the number of financial agreements called mortgage-backed securities (MBS) and collateralized debt obligations (CDO), which derived their value from mortgage payments and housing prices, greeatly increased. Such financial innovation enableed institutions and investors around the world to invest in the U.S. hosing market.Housing bubble won't last long, as soon as it fell, the falling prices reulsted in homes worth less than the mortgae loan, providing a financial incentive to enter foreclosure. Defaults and losses on housing and other loans increased significantly as the crisis expanded from the housing market to other parts of the economy. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
